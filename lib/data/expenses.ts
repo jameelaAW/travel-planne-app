@@ -12,10 +12,10 @@ function normalize(row: Record<string, unknown>): Expense {
   };
 }
 
-/** Human-readable record of an ECB conversion, kept in notes when the fx columns don't exist yet. */
-const FX_NOTE = /\s*\[ECB FX:[^\]]*\]/g;
+/** Human-readable record of a conversion (source, rate, date), kept in notes when the fx columns don't exist yet. */
+const FX_NOTE = /\s*\[(?:ECB|MAS) FX:[^\]]*\]/g;
 export function fxNote(fx: FxDetails, tripCurrency: string) {
-  return `[ECB FX: ${fx.original_amount} ${fx.original_currency} at 1 ${fx.original_currency} = ${Number(fx.fx_rate.toPrecision(6))} ${tripCurrency}, ECB reference rate ${fx.fx_rate_date}]`;
+  return `[${fx.fx_source} FX: ${fx.original_amount} ${fx.original_currency} at 1 ${fx.original_currency} = ${Number(fx.fx_rate.toPrecision(6))} ${tripCurrency}, ${fx.fx_source} rate ${fx.fx_rate_date}]`;
 }
 export function stripFxNote(notes: string | null) {
   return notes?.replace(FX_NOTE, "").trim() || null;

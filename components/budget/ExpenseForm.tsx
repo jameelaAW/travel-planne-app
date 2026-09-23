@@ -4,7 +4,8 @@ import { useState } from "react";
 import type { Category, Expense } from "@/lib/data/types";
 import { createExpenseAction, updateExpenseAction } from "@/lib/actions/expense-actions";
 import { formatMoney, parseAmount } from "@/lib/format";
-import { CurrencySelect, useFx } from "@/components/fx/FxProvider";
+import { CurrencySelect, RateSourceSelect, useFx } from "@/components/fx/FxProvider";
+import type { RateSource } from "@/lib/fx/types";
 import { Button, ErrorBanner, Field, Input } from "@/components/ui/primitives";
 import { useAction } from "@/components/ui/use-action";
 
@@ -23,9 +24,10 @@ export function ExpenseForm({ tripId, tripCurrency, categories, defaultCategoryI
   // Editing a converted expense shows what the user originally entered.
   const [amount, setAmount] = useState(expense ? String(expense.original_amount ?? expense.amount) : "");
   const [currency, setCurrency] = useState(expense?.original_currency ?? tripCurrency);
-  const { preview } = useFx();
+  const { preview, preferred } = useFx();
+  const [source, setSource] = useState<RateSource>((expense?.fx_source as RateSource | null) ?? preferred);
   const parsed = parseAmount(amount);
-  const fx = parsed !== null ? preview(parsed, currency, tripCurrency) : null;
+  const fx = parsed !== null ? preview(parsed, currency, tripCurrency, source) : null;
   const amountError =
     amount !== "" && parsed === null
       ? "Amount must be a number."
@@ -70,16 +72,21 @@ export function ExpenseForm({ tripId, tripCurrency, categories, defaultCategoryI
         </Field>
       </div>
       {currency !== tripCurrency && (
-        <p role="status" className="text-xs text-slate-600">
-          {fx ? (
-            <>
-              ≈ <strong className="tabular-nums">{formatMoney(fx.amount, tripCurrency)}</strong> at the ECB reference rate ({fx.date}): 1{" "}
-              {currency} = {Number(fx.rate.toPrecision(6))} {tripCurrency}. Saved in {tripCurrency}; the exact rate is applied on save.
-            </>
-          ) : (
-            <>Will be converted to {tripCurrency} at the latest ECB reference rate on save.</>
-          )}
-        </p>
+        <div className="flex flex-wrap items-center gap-2 text-xs text-slate-600">
+          <RateSourceSelect value={source} onChange={setSource} from={currency} to={tripCurrency} />
+          <p role="status">
+            {fx ? (
+              <>
+                ≈ <strong className="tabular-nums">{formatMoney(fx.amount, tripCurrency)}</strong> at the {fx.source} rate of {fx.date}: 1 {currency} ={" "}
+                {Number(fx.rate.toPrecision(6))} {tripCurrency}. Saved in {tripCurrency}.
+              </>
+            ) : (
+              <>
+                Converted to {tripCurrency} at the latest {source} rate on save.
+              </>
+            )}
+          </p>
+        </div>
       )}
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Category">

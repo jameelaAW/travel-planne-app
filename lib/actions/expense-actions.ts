@@ -4,10 +4,11 @@ import { revalidatePath } from "next/cache";
 import { createExpense, deleteExpense, updateExpense } from "@/lib/data/expenses";
 import { getTrip } from "@/lib/data/trips";
 import type { ActionResult, ExpenseInput } from "@/lib/data/types";
-import { convert, getEcbRates } from "@/lib/fx/ecb";
+import { convert, getRates, preferredSource } from "@/lib/fx";
+import { isRateSource } from "@/lib/fx/types";
 import { parseAmount } from "@/lib/format";
 
-/** Parses the form; amounts in a foreign currency are converted to the trip currency at the ECB reference rate. */
+/** Parses the form; foreign-currency amounts are converted to the trip currency using the chosen rate source (ECB or MAS). */
 async function parseExpenseForm(
   form: FormData,
   tripCurrency: string,
@@ -29,8 +30,10 @@ async function parseExpenseForm(
   if (currency === tripCurrency)
     return { ok: true, input: { title, amount: entered!, category_id, notes, is_estimated, fx: null } };
 
+  const requested = String(form.get("rate_source") ?? "");
+  const source = isRateSource(requested) ? requested : await preferredSource();
   try {
-    const table = await getEcbRates();
+    const table = await getRates(source);
     const { amount, rate, date } = convert(table, entered!, currency, tripCurrency);
     return {
       ok: true,
@@ -40,13 +43,13 @@ async function parseExpenseForm(
         category_id,
         notes,
         is_estimated,
-        fx: { original_amount: entered!, original_currency: currency, fx_rate: rate, fx_rate_date: date, fx_source: "ECB" },
+        fx: { original_amount: entered!, original_currency: currency, fx_rate: rate, fx_rate_date: date, fx_source: source },
       },
     };
   } catch (e) {
     return {
       ok: false,
-      error: `Could not convert ${currency} to ${tripCurrency}: ${(e as Error).message}`,
+      error: `Could not convert ${currency} to ${tripCurrency} with ${source} rates: ${(e as Error).message}`,
       fieldErrors: { currency: "Conversion unavailable right now." },
     };
   }

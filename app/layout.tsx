@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { supportedCurrencies } from "@/lib/fx/ecb";
+import { allRateTables, preferredSource } from "@/lib/fx";
 import { AppShell } from "@/components/nav/AppShell";
 import { TripNav, TripNavSkeleton } from "@/components/nav/TripNav";
-import { FxProvider } from "@/components/fx/FxProvider";
+import { FxProvider, RateSourcePicker } from "@/components/fx/FxProvider";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -12,16 +12,19 @@ export const metadata: Metadata = {
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const { rates } = await supportedCurrencies();
+  const [tables, preferred] = await Promise.all([allRateTables(), preferredSource()]);
   return (
     <html lang="en">
       <body className="min-h-screen bg-slate-50 text-slate-900 antialiased">
-        <FxProvider rates={rates}>
+        <FxProvider tables={tables} preferred={preferred}>
           <AppShell
             nav={
-              <Suspense fallback={<TripNavSkeleton />}>
-                <TripNav />
-              </Suspense>
+              <>
+                <Suspense fallback={<TripNavSkeleton />}>
+                  <TripNav />
+                </Suspense>
+                <RateSourcePicker />
+              </>
             }
           >
             {children}

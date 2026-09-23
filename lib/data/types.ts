@@ -73,7 +73,7 @@ export type FxDetails = {
   original_currency: string;
   fx_rate: number;
   fx_rate_date: string;
-  fx_source: "ECB";
+  fx_source: "ECB" | "MAS";
 };
 
 export type ExpenseInput = {
