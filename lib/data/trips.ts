@@ -77,6 +77,15 @@ export async function updateTrip(id: string, input: Partial<TripInput>): Promise
   return normalize(data);
 }
 
+export async function updateTripAi(
+  id: string,
+  patch: Pick<Partial<Trip>, "ai_suggested_allocation" | "ai_source" | "ai_confidence" | "ai_review_status">,
+) {
+  const supabase = await db();
+  const { error } = await supabase.from("trips").update(patch).eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
 export async function deleteTrip(id: string): Promise<void> {
   const supabase = await db();
   const { error } = await supabase.from("trips").delete().eq("id", id);
