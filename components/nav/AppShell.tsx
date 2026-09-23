@@ -17,6 +17,9 @@ export function AppShell({ nav, children }: { nav: ReactNode; children: ReactNod
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
 
+  // Sign-in screens render without the app chrome.
+  if (pathname === "/login" || pathname.startsWith("/auth/")) return <>{children}</>;
+
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[16rem_1fr]">
       <a

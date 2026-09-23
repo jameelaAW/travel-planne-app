@@ -35,7 +35,26 @@ export async function updateSession(request: NextRequest) {
     });
 
     // Refresh session so it doesn't expire while user is active
-    await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    // Login wall (Sprint 5). DEMO_MODE=true keeps the v1 open demo.
+    const path = request.nextUrl.pathname;
+    const isPublic = path === "/login" || path.startsWith("/auth/") || path.startsWith("/api/health");
+    if (process.env.DEMO_MODE !== "true") {
+      const redirectTo = (target: URL) => {
+        const r = NextResponse.redirect(target);
+        response.cookies.getAll().forEach((c) => r.cookies.set(c)); // keep refreshed session cookies
+        return r;
+      };
+      if (!user && !isPublic) {
+        const login = new URL("/login", request.url);
+        if (path !== "/") login.searchParams.set("next", path + request.nextUrl.search);
+        return redirectTo(login);
+      }
+      if (user && path === "/login") return redirectTo(new URL("/", request.url));
+    }
     return response;
   } catch {
     // Never let an auth hiccup crash the entire edge middleware

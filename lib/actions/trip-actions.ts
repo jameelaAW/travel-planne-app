@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { scaleTripAllocations } from "@/lib/data/categories";
 import { scaleTripExpenses } from "@/lib/data/expenses";
 import { createTrip, deleteTrip, getTrip, updateTrip } from "@/lib/data/trips";
+import { logAudit } from "@/lib/data/audit";
 import type { ActionResult, TripInput } from "@/lib/data/types";
 import { allRateTables, convert, getRates, preferredSource } from "@/lib/fx";
 import { isRateSource, type RateTable } from "@/lib/fx/types";
@@ -42,6 +43,7 @@ export async function createTripAction(form: FormData): Promise<ActionResult<{ i
   if (!parsed.ok) return { ok: false, error: "Please fix the highlighted fields.", fieldErrors: parsed.fieldErrors };
   try {
     const trip = await createTrip(parsed.input);
+    await logAudit({ action_type: "create", entity_type: "trip", entity_id: trip.id, after_state: parsed.input });
     revalidatePath("/", "layout");
     return { ok: true, data: { id: trip.id } };
   } catch (e) {
@@ -76,6 +78,13 @@ export async function updateTripAction(id: string, form: FormData): Promise<Acti
       await scaleTripExpenses(id, rate);
     }
     await updateTrip(id, input);
+    await logAudit({
+      action_type: "update",
+      entity_type: "trip",
+      entity_id: id,
+      before_state: { title: before.title, destination: before.destination, start_date: before.start_date, end_date: before.end_date, total_budget: before.total_budget, currency: before.currency },
+      after_state: { ...input, converted_existing: convertAll },
+    });
     revalidatePath("/", "layout");
     return { ok: true };
   } catch (e) {
@@ -85,7 +94,10 @@ export async function updateTripAction(id: string, form: FormData): Promise<Acti
 
 export async function deleteTripAction(id: string): Promise<ActionResult> {
   try {
+    const before = await getTrip(id);
+    if (!before) return { ok: false, error: "Trip not found." };
     await deleteTrip(id);
+    await logAudit({ action_type: "delete", entity_type: "trip", entity_id: id, before_state: before });
     revalidatePath("/", "layout");
     return { ok: true };
   } catch (e) {

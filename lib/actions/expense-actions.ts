@@ -1,7 +1,9 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { createExpense, deleteExpense, updateExpense } from "@/lib/data/expenses";
+import { logAudit } from "@/lib/data/audit";
+import { listCategories } from "@/lib/data/categories";
+import { createExpense, deleteExpense, getExpense, updateExpense } from "@/lib/data/expenses";
 import { getTrip } from "@/lib/data/trips";
 import type { ActionResult, ExpenseInput } from "@/lib/data/types";
 import { convert, getRates, preferredSource } from "@/lib/fx";
@@ -61,6 +63,10 @@ async function save(tripId: string, form: FormData, write: (input: ExpenseInput,
     if (!trip) return { ok: false, error: "Trip not found." };
     const parsed = await parseExpenseForm(form, trip.currency);
     if (!parsed.ok) return { ok: false, error: parsed.error ?? "Please fix the highlighted fields.", fieldErrors: parsed.fieldErrors };
+    // The category must belong to this trip (no attaching expenses to someone else's category).
+    const categoryId = parsed.input.category_id;
+    if (categoryId && !(await listCategories(tripId)).some((c) => c.id === categoryId))
+      return { ok: false, error: "That category isn't part of this trip.", fieldErrors: { category_id: "Pick a category from this trip." } };
     await write(parsed.input, trip.currency);
     revalidatePath("/", "layout");
     return { ok: true };
@@ -70,16 +76,28 @@ async function save(tripId: string, form: FormData, write: (input: ExpenseInput,
 }
 
 export async function createExpenseAction(tripId: string, form: FormData): Promise<ActionResult> {
-  return save(tripId, form, (input, cur) => createExpense(tripId, input, cur));
+  return save(tripId, form, async (input, cur) => {
+    await createExpense(tripId, input, cur);
+    await logAudit({ action_type: "create", entity_type: "expense", entity_id: null, after_state: { trip_id: tripId, ...input } });
+  });
 }
 
 export async function updateExpenseAction(tripId: string, expenseId: string, form: FormData): Promise<ActionResult> {
-  return save(tripId, form, (input, cur) => updateExpense(expenseId, input, cur));
+  return save(tripId, form, async (input, cur) => {
+    const before = await getExpense(tripId, expenseId);
+    if (!before) throw new Error("expense not found");
+    await updateExpense(tripId, expenseId, input, cur);
+    await logAudit({ action_type: "update", entity_type: "expense", entity_id: expenseId, before_state: before, after_state: input });
+  });
 }
 
 export async function deleteExpenseAction(tripId: string, expenseId: string): Promise<ActionResult> {
   try {
-    await deleteExpense(expenseId);
+    if (!(await getTrip(tripId))) return { ok: false, error: "Trip not found." };
+    const before = await getExpense(tripId, expenseId);
+    if (!before) return { ok: false, error: "Expense not found." };
+    await deleteExpense(tripId, expenseId);
+    await logAudit({ action_type: "delete", entity_type: "expense", entity_id: expenseId, before_state: before });
     revalidatePath("/", "layout");
     return { ok: true };
   } catch (e) {

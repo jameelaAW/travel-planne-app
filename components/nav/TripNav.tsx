@@ -1,3 +1,4 @@
+import { NotSignedInError } from "@/lib/auth";
 import { loadTripList } from "@/lib/data/trip-view";
 import { Skeleton } from "@/components/ui/primitives";
 import { TripNavList } from "./TripNavList";
@@ -6,7 +7,8 @@ export async function TripNav() {
   try {
     const trips = await loadTripList();
     return <TripNavList trips={trips.map((t) => ({ id: t.id, title: t.title }))} />;
-  } catch {
+  } catch (e) {
+    if (e instanceof NotSignedInError) return null;
     return <TripNavList trips={[]} error="Couldn't load trips." />;
   }
 }

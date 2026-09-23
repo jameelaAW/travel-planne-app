@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { allRateTables, preferredSource } from "@/lib/fx";
 import { AppShell } from "@/components/nav/AppShell";
 import { TripNav, TripNavSkeleton } from "@/components/nav/TripNav";
+import { AccountMenu } from "@/components/nav/AccountMenu";
 import { FxProvider, RateSourcePicker } from "@/components/fx/FxProvider";
 import "./globals.css";
 
@@ -24,6 +25,9 @@ export default async function RootLayout({ children }: { children: React.ReactNo
                   <TripNav />
                 </Suspense>
                 <RateSourcePicker />
+                <Suspense fallback={null}>
+                  <AccountMenu />
+                </Suspense>
               </>
             }
           >

@@ -1,3 +1,4 @@
+import { ownerId } from "@/lib/auth";
 import { db } from "./supabase";
 import type { Expense, ExpenseInput, FxDetails } from "./types";
 
@@ -41,55 +42,62 @@ function rows(input: ExpenseInput, tripCurrency: string) {
 }
 
 export async function listExpenses(tripId: string): Promise<Expense[]> {
-  const supabase = await db();
-  const { data, error } = await supabase
-    .from("expenses")
-    .select("*")
-    .eq("trip_id", tripId)
-    .order("created_at", { ascending: true });
+  const [supabase, uid] = await Promise.all([db(), ownerId()]);
+  let q = supabase.from("expenses").select("*").eq("trip_id", tripId);
+  if (uid) q = q.eq("user_id", uid);
+  const { data, error } = await q.order("created_at", { ascending: true });
   if (error) throw new Error(error.message);
   return (data ?? []).map(normalize);
 }
 
-export async function getExpense(id: string): Promise<Expense | null> {
-  const supabase = await db();
-  const { data, error } = await supabase.from("expenses").select("*").eq("id", id).maybeSingle();
+export async function getExpense(tripId: string, id: string): Promise<Expense | null> {
+  const [supabase, uid] = await Promise.all([db(), ownerId()]);
+  let q = supabase.from("expenses").select("*").eq("trip_id", tripId).eq("id", id);
+  if (uid) q = q.eq("user_id", uid);
+  const { data, error } = await q.maybeSingle();
   if (error) throw new Error(error.message);
   return data ? normalize(data) : null;
 }
 
 export async function createExpense(tripId: string, input: ExpenseInput, tripCurrency: string) {
-  const supabase = await db();
+  const [supabase, uid] = await Promise.all([db(), ownerId()]);
   const { withColumns, legacy } = rows(input, tripCurrency);
-  let { error } = await supabase.from("expenses").insert({ ...withColumns, trip_id: tripId });
-  if (missingColumn(error)) ({ error } = await supabase.from("expenses").insert({ ...legacy, trip_id: tripId }));
+  const owner = { trip_id: tripId, user_id: uid };
+  let { error } = await supabase.from("expenses").insert({ ...withColumns, ...owner });
+  if (missingColumn(error)) ({ error } = await supabase.from("expenses").insert({ ...legacy, ...owner }));
   if (error) throw new Error(error.message);
 }
 
-export async function updateExpense(id: string, input: ExpenseInput, tripCurrency: string) {
-  const supabase = await db();
+export async function updateExpense(tripId: string, id: string, input: ExpenseInput, tripCurrency: string) {
+  const [supabase, uid] = await Promise.all([db(), ownerId()]);
   const { withColumns, legacy } = rows(input, tripCurrency);
-  let { error } = await supabase.from("expenses").update(withColumns).eq("id", id);
-  if (missingColumn(error)) ({ error } = await supabase.from("expenses").update(legacy).eq("id", id));
+  const run = (row: Record<string, unknown>) => {
+    let q = supabase.from("expenses").update(row).eq("trip_id", tripId).eq("id", id);
+    if (uid) q = q.eq("user_id", uid);
+    return q;
+  };
+  let { error } = await run(withColumns);
+  if (missingColumn(error)) ({ error } = await run(legacy));
   if (error) throw new Error(error.message);
 }
 
 /** Bulk-convert every expense of a trip (used when the trip currency changes). */
 export async function scaleTripExpenses(tripId: string, rate: number) {
   const supabase = await db();
-  const { data, error } = await supabase.from("expenses").select("id, amount").eq("trip_id", tripId);
-  if (error) throw new Error(error.message);
-  for (const e of data ?? []) {
-    const { error: err } = await supabase
+  for (const e of await listExpenses(tripId)) {
+    const { error } = await supabase
       .from("expenses")
-      .update({ amount: Math.round(Number(e.amount) * rate * 100) / 100 })
+      .update({ amount: Math.round(e.amount * rate * 100) / 100 })
+      .eq("trip_id", tripId)
       .eq("id", e.id);
-    if (err) throw new Error(err.message);
+    if (error) throw new Error(error.message);
   }
 }
 
-export async function deleteExpense(id: string) {
-  const supabase = await db();
-  const { error } = await supabase.from("expenses").delete().eq("id", id);
+export async function deleteExpense(tripId: string, id: string) {
+  const [supabase, uid] = await Promise.all([db(), ownerId()]);
+  let q = supabase.from("expenses").delete().eq("trip_id", tripId).eq("id", id);
+  if (uid) q = q.eq("user_id", uid);
+  const { error } = await q;
   if (error) throw new Error(error.message);
 }
