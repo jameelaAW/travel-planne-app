@@ -22,7 +22,7 @@ export async function setAllocationAction(tripId: string, categoryId: string, ra
     return { ok: false, error: "Allocation must be a positive number.", fieldErrors: { allocated_amount: "Allocation must be a positive number." } };
   try {
     await updateCategory(categoryId, { allocated_amount: amount });
-    revalidatePath(`/trips/${tripId}`, "layout");
+    revalidatePath("/", "layout");
     return { ok: true };
   } catch (e) {
     return fail("save the allocation", e);
@@ -34,7 +34,7 @@ export async function renameCategoryAction(tripId: string, categoryId: string, n
   if (!trimmed) return { ok: false, error: "Name is required.", fieldErrors: { name: "Name is required." } };
   try {
     await updateCategory(categoryId, { name: trimmed });
-    revalidatePath(`/trips/${tripId}`, "layout");
+    revalidatePath("/", "layout");
     return { ok: true };
   } catch (e) {
     return fail("rename the category", e);
@@ -51,7 +51,7 @@ export async function addCategoryAction(tripId: string, form: FormData): Promise
   if (Object.keys(fieldErrors).length) return { ok: false, error: "Please fix the highlighted fields.", fieldErrors };
   try {
     await createCategory(tripId, name, categoryType, allocated!);
-    revalidatePath(`/trips/${tripId}`, "layout");
+    revalidatePath("/", "layout");
     return { ok: true };
   } catch (e) {
     return fail("add the category", e);
@@ -62,7 +62,7 @@ export async function addCategoryAction(tripId: string, form: FormData): Promise
 export async function deleteCategoryAction(tripId: string, categoryId: string): Promise<ActionResult> {
   try {
     await deleteCategory(categoryId);
-    revalidatePath(`/trips/${tripId}`, "layout");
+    revalidatePath("/", "layout");
     return { ok: true };
   } catch (e) {
     return fail("delete the category", e);
@@ -74,7 +74,7 @@ export async function restoreDefaultCategoriesAction(tripId: string): Promise<Ac
   try {
     const existing = await listCategories(tripId);
     if (existing.length === 0) await createDefaultCategories(tripId);
-    revalidatePath(`/trips/${tripId}`, "layout");
+    revalidatePath("/", "layout");
     return { ok: true };
   } catch (e) {
     return fail("create the default categories", e);

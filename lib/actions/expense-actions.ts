@@ -28,7 +28,7 @@ export async function createExpenseAction(tripId: string, form: FormData): Promi
   if (!parsed.ok) return { ok: false, error: "Please fix the highlighted fields.", fieldErrors: parsed.fieldErrors };
   try {
     await createExpense(tripId, parsed.input);
-    revalidatePath(`/trips/${tripId}`, "layout");
+    revalidatePath("/", "layout");
     return { ok: true };
   } catch (e) {
     return { ok: false, error: `Could not save the expense: ${(e as Error).message}` };
@@ -40,7 +40,7 @@ export async function updateExpenseAction(tripId: string, expenseId: string, for
   if (!parsed.ok) return { ok: false, error: "Please fix the highlighted fields.", fieldErrors: parsed.fieldErrors };
   try {
     await updateExpense(expenseId, parsed.input);
-    revalidatePath(`/trips/${tripId}`, "layout");
+    revalidatePath("/", "layout");
     return { ok: true };
   } catch (e) {
     return { ok: false, error: `Could not save the expense: ${(e as Error).message}` };
@@ -50,7 +50,7 @@ export async function updateExpenseAction(tripId: string, expenseId: string, for
 export async function deleteExpenseAction(tripId: string, expenseId: string): Promise<ActionResult> {
   try {
     await deleteExpense(expenseId);
-    revalidatePath(`/trips/${tripId}`, "layout");
+    revalidatePath("/", "layout");
     return { ok: true };
   } catch (e) {
     return { ok: false, error: `Could not delete the expense: ${(e as Error).message}` };

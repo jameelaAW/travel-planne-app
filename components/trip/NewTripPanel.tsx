@@ -21,7 +21,7 @@ export function NewTripPanel({ label = "New trip" }: { label?: string }) {
         onCancel={() => setOpen(false)}
         onDone={(data) => {
           setOpen(false);
-          if (data?.id) router.push(`/trips/${data.id}`);
+          if (data?.id) router.push(`/trips/${data.id}/categories`);
         }}
       />
     </Card>

@@ -22,6 +22,22 @@ export async function listTrips(): Promise<Trip[]> {
   return (data ?? []).map(normalize);
 }
 
+/** Allocated + planned spend per trip, for the trip list cards. */
+export async function listTripTotals(): Promise<Map<string, { allocated: number; spent: number }>> {
+  const supabase = await db();
+  const [cats, exps] = await Promise.all([
+    supabase.from("categories").select("trip_id, allocated_amount"),
+    supabase.from("expenses").select("trip_id, amount"),
+  ]);
+  if (cats.error) throw new Error(cats.error.message);
+  if (exps.error) throw new Error(exps.error.message);
+  const totals = new Map<string, { allocated: number; spent: number }>();
+  const get = (id: string) => totals.get(id) ?? totals.set(id, { allocated: 0, spent: 0 }).get(id)!;
+  for (const c of cats.data ?? []) get(c.trip_id).allocated += Number(c.allocated_amount);
+  for (const e of exps.data ?? []) get(e.trip_id).spent += Number(e.amount);
+  return totals;
+}
+
 export async function getTrip(id: string): Promise<Trip | null> {
   const supabase = await db();
   const { data, error } = await supabase.from("trips").select("*").eq("id", id).maybeSingle();
