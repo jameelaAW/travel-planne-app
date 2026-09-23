@@ -1,3 +1,4 @@
+import { createDefaultCategories } from "./categories";
 import { db } from "./supabase";
 import type { Trip, TripInput } from "./types";
 
@@ -32,11 +33,20 @@ export async function getTrip(id: string): Promise<Trip | null> {
   return data ? normalize(data) : null;
 }
 
+/** Creates the trip and its 6 default budget categories. */
 export async function createTrip(input: TripInput): Promise<Trip> {
   const supabase = await db();
   const { data, error } = await supabase.from("trips").insert(input).select("*").single();
   if (error) throw new Error(error.message);
-  return normalize(data);
+  const trip = normalize(data);
+  try {
+    await createDefaultCategories(trip.id);
+  } catch (e) {
+    // Don't leave a half-created trip behind.
+    await supabase.from("trips").delete().eq("id", trip.id);
+    throw e;
+  }
+  return trip;
 }
 
 export async function updateTrip(id: string, input: Partial<TripInput>): Promise<Trip> {

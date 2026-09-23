@@ -24,6 +24,52 @@ export type TripInput = {
   currency: string;
 };
 
+export const CATEGORY_TYPES = ["air", "land_travel", "local_travel", "food", "lodging", "shopping"] as const;
+export type CategoryType = (typeof CATEGORY_TYPES)[number];
+
+export const DEFAULT_CATEGORY_NAMES: Record<CategoryType, string> = {
+  air: "Air Tickets",
+  land_travel: "Land Travel",
+  local_travel: "Local Travel",
+  food: "Food",
+  lodging: "Lodging",
+  shopping: "Shopping",
+};
+
+export type Category = {
+  id: string;
+  trip_id: string;
+  user_id: string | null;
+  name: string;
+  category_type: string;
+  allocated_amount: number;
+  created_at: string;
+};
+
+export type Expense = {
+  id: string;
+  trip_id: string;
+  category_id: string | null;
+  user_id: string | null;
+  title: string;
+  amount: number;
+  is_estimated: boolean;
+  notes: string | null;
+  ai_categorized: string | null;
+  ai_source: string | null;
+  ai_confidence: number | null;
+  ai_review_status: string | null;
+  created_at: string;
+};
+
+export type ExpenseInput = {
+  title: string;
+  amount: number;
+  category_id: string | null;
+  is_estimated: boolean;
+  notes: string | null;
+};
+
 /** Standard result returned by every server action. */
 export type ActionResult<T = undefined> =
   | { ok: true; data?: T }
