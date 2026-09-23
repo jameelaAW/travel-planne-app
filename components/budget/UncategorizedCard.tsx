@@ -39,7 +39,7 @@ export function UncategorizedCard({
           </ul>
         )}
         {adding ? (
-          <ExpenseForm tripId={tripId} categories={categories} defaultCategoryId={null} onDone={() => setAdding(false)} onCancel={() => setAdding(false)} />
+          <ExpenseForm tripCurrency={currency} tripId={tripId} categories={categories} defaultCategoryId={null} onDone={() => setAdding(false)} onCancel={() => setAdding(false)} />
         ) : (
           <Button variant="secondary" className="py-1 text-xs" onClick={() => setAdding(true)}>
             + Add expense

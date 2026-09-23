@@ -47,6 +47,13 @@ export async function updateCategory(id: string, patch: { name?: string; allocat
   if (error) throw new Error(error.message);
 }
 
+/** Bulk-convert every allocation of a trip (used when the trip currency changes). */
+export async function scaleTripAllocations(tripId: string, rate: number) {
+  for (const c of await listCategories(tripId)) {
+    await updateCategory(c.id, { allocated_amount: Math.round(c.allocated_amount * rate * 100) / 100 });
+  }
+}
+
 export async function deleteCategory(id: string) {
   const supabase = await db();
   const { error } = await supabase.from("categories").delete().eq("id", id);

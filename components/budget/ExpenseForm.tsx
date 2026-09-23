@@ -3,12 +3,14 @@
 import { useState } from "react";
 import type { Category, Expense } from "@/lib/data/types";
 import { createExpenseAction, updateExpenseAction } from "@/lib/actions/expense-actions";
-import { parseAmount } from "@/lib/format";
+import { formatMoney, parseAmount } from "@/lib/format";
+import { CurrencySelect, useFx } from "@/components/fx/FxProvider";
 import { Button, ErrorBanner, Field, Input } from "@/components/ui/primitives";
 import { useAction } from "@/components/ui/use-action";
 
 type Props = {
   tripId: string;
+  tripCurrency: string;
   categories: Pick<Category, "id" | "name">[];
   defaultCategoryId?: string | null;
   expense?: Expense;
@@ -16,10 +18,14 @@ type Props = {
   onCancel: () => void;
 };
 
-export function ExpenseForm({ tripId, categories, defaultCategoryId, expense, onDone, onCancel }: Props) {
+export function ExpenseForm({ tripId, tripCurrency, categories, defaultCategoryId, expense, onDone, onCancel }: Props) {
   const { pending, error, fieldErrors, setFieldErrors, run } = useAction();
-  const [amount, setAmount] = useState(expense ? String(expense.amount) : "");
+  // Editing a converted expense shows what the user originally entered.
+  const [amount, setAmount] = useState(expense ? String(expense.original_amount ?? expense.amount) : "");
+  const [currency, setCurrency] = useState(expense?.original_currency ?? tripCurrency);
+  const { preview } = useFx();
   const parsed = parseAmount(amount);
+  const fx = parsed !== null ? preview(parsed, currency, tripCurrency) : null;
   const amountError =
     amount !== "" && parsed === null
       ? "Amount must be a number."
@@ -45,7 +51,7 @@ export function ExpenseForm({ tripId, categories, defaultCategoryId, expense, on
       }}
     >
       <ErrorBanner message={error} />
-      <div className="grid gap-3 sm:grid-cols-[1fr_8rem]">
+      <div className="grid gap-3 sm:grid-cols-[1fr_8rem_6rem]">
         <Field label="Expense" error={fieldErrors.title}>
           <Input name="title" defaultValue={expense?.title} placeholder="Round-trip flight" autoFocus invalid={!!fieldErrors.title} />
         </Field>
@@ -59,7 +65,22 @@ export function ExpenseForm({ tripId, categories, defaultCategoryId, expense, on
             invalid={!!amountError}
           />
         </Field>
+        <Field label="Currency" error={fieldErrors.currency}>
+          <CurrencySelect name="currency" label="Expense currency" value={currency} onChange={setCurrency} />
+        </Field>
       </div>
+      {currency !== tripCurrency && (
+        <p role="status" className="text-xs text-slate-600">
+          {fx ? (
+            <>
+              ≈ <strong className="tabular-nums">{formatMoney(fx.amount, tripCurrency)}</strong> at the ECB reference rate ({fx.date}): 1{" "}
+              {currency} = {Number(fx.rate.toPrecision(6))} {tripCurrency}. Saved in {tripCurrency}; the exact rate is applied on save.
+            </>
+          ) : (
+            <>Will be converted to {tripCurrency} at the latest ECB reference rate on save.</>
+          )}
+        </p>
+      )}
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Category">
           <select

@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import type { ActionResult, Trip } from "@/lib/data/types";
-import { parseAmount } from "@/lib/format";
+import { formatMoney, parseAmount } from "@/lib/format";
+import { CurrencySelect, useFx } from "@/components/fx/FxProvider";
 import { Button, ErrorBanner, Field, Input } from "@/components/ui/primitives";
 import { useAction } from "@/components/ui/use-action";
 
@@ -18,7 +19,11 @@ export function TripForm({ trip, submitLabel, onSubmit, onDone, onCancel }: Prop
   const { pending, error, fieldErrors, setFieldErrors, run } = useAction();
   const [budget, setBudget] = useState(trip ? String(trip.total_budget) : "");
 
+  const [currency, setCurrency] = useState(trip?.currency ?? "USD");
+  const { preview } = useFx();
+  const currencyChanged = !!trip && currency !== trip.currency;
   const budgetValue = parseAmount(budget);
+  const conversion = currencyChanged ? preview(budgetValue ?? 0, trip!.currency, currency) : null;
   const budgetError =
     budget !== "" && (budgetValue === null || budgetValue < 0)
       ? "Budget must be a positive number."
@@ -69,14 +74,8 @@ export function TripForm({ trip, submitLabel, onSubmit, onDone, onCancel }: Prop
             invalid={!!budgetError}
           />
         </Field>
-        <Field label="Currency" error={fieldErrors.currency}>
-          <Input
-            name="currency"
-            defaultValue={trip?.currency ?? "USD"}
-            maxLength={3}
-            className="uppercase"
-            invalid={!!fieldErrors.currency}
-          />
+        <Field label="Currency" error={fieldErrors.currency} hint="Rates: ECB euro reference rates">
+          <CurrencySelect name="currency" label="Currency" value={currency} onChange={setCurrency} />
         </Field>
         <Field label="Start date">
           <Input type="date" name="start_date" defaultValue={trip?.start_date ?? ""} />
@@ -85,6 +84,22 @@ export function TripForm({ trip, submitLabel, onSubmit, onDone, onCancel }: Prop
           <Input type="date" name="end_date" defaultValue={trip?.end_date ?? ""} invalid={!!fieldErrors.end_date} />
         </Field>
       </div>
+      {trip && currencyChanged && (
+        <label className="flex items-start gap-2 rounded-lg bg-slate-50 p-3 text-sm text-slate-700">
+          <input type="checkbox" name="convert_existing" defaultChecked className="mt-0.5 size-4 accent-teal-700" />
+          <span>
+            Convert the budget above, all allocations and all expenses from {trip.currency} to {currency}
+            {conversion ? (
+              <span className="block text-xs text-slate-500">
+                ECB reference rate {conversion.date}: 1 {trip.currency} = {Number(conversion.rate.toPrecision(6))} {currency}
+                {budgetValue !== null && ` · budget becomes ${formatMoney(conversion.amount, currency)}`}
+              </span>
+            ) : (
+              <span className="block text-xs text-amber-700">ECB rates unavailable. Leave unticked to relabel only.</span>
+            )}
+          </span>
+        </label>
+      )}
       <div className="flex gap-2">
         <Button type="submit" disabled={pending || !!budgetError}>
           {pending ? "Saving…" : submitLabel}

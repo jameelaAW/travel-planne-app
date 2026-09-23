@@ -29,7 +29,7 @@ export function ExpenseRow({
   if (editing)
     return (
       <li>
-        <ExpenseForm
+        <ExpenseForm tripCurrency={currency}
           tripId={tripId}
           categories={categories}
           expense={expense}
@@ -51,6 +51,11 @@ export function ExpenseRow({
             >
               {expense.is_estimated ? "Estimate" : "Booked"}
             </span>
+            {expense.original_currency && expense.original_amount != null && (
+              <span title={`ECB reference rate ${expense.fx_rate_date}: 1 ${expense.original_currency} = ${expense.fx_rate} ${currency}`}>
+                {formatMoney(expense.original_amount, expense.original_currency)} · ECB {expense.fx_rate_date}
+              </span>
+            )}
             {expense.notes && <span className="truncate">{expense.notes}</span>}
           </p>
         </div>

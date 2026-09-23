@@ -81,7 +81,7 @@ export function CategoryCard({
         )}
 
         {adding ? (
-          <ExpenseForm
+          <ExpenseForm tripCurrency={currency}
             tripId={tripId}
             categories={categories}
             defaultCategoryId={category.id}

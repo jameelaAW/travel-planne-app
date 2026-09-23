@@ -23,7 +23,7 @@ export function AllExpenses({
   return (
     <div className="space-y-4">
       {adding ? (
-        <ExpenseForm
+        <ExpenseForm tripCurrency={currency}
           tripId={tripId}
           categories={categories}
           defaultCategoryId={categories[0]?.id ?? null}
